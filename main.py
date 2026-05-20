@@ -4,7 +4,7 @@ from Data.Download import Download
 def main():
 
     Download.start()
-    Download.realtime()
+    #Download.realtime()
 
 
 if __name__ == "__main__":

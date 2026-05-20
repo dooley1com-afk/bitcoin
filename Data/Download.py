@@ -138,7 +138,8 @@ class Download:
 
         for col in numeric_cols:
             df[col] = pd.to_numeric(df[col])
-
+        if not df.empty:
+            df = df.iloc[:-1]
         # =========================================
         # 엑셀 저장
         # =========================================
