@@ -1,10 +1,10 @@
 from Data.Download import Download
-
+import asyncio
 
 def main():
 
     Download.start()
-    #Download.realtime()
+    asyncio.run(Download.realtime())
 
 
 if __name__ == "__main__":
