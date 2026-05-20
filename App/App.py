@@ -6,22 +6,16 @@ import threading
 import webview
 
 class ChartTheme:
-    """ 
-    [★ 디자인 설정 클래스 - 골드 네온 스타일 수정] 
-    """
-    BG_COLOR = "#080b11"              # 더 깊고 어두운 밤하늘 배경색 (다크 네이비 블랙)
-    TEXT_COLOR = "#64748b"            # 그리드 문자 색상 (차분한 슬레이트 그레이)
-    HIGHLIGHT_COLOR = "#fbbf24"       # 실시간 가격 강조 색상 (★ 찬란한 메탈릭 골드)
-    LINE_COLOR = "#ffffff"            # ★ 차트 기준선 색상 (깔끔한 퓨어 화이트)
-    GRID_COLOR = "rgba(255, 255, 255, 0.015)" # 배경 격자 무늬 투명도 조절
+    """ [디자인 설정 클래스 - 골드 네온 스타일] """
+    BG_COLOR = "#080b11"              
+    TEXT_COLOR = "#64748b"            
+    HIGHLIGHT_COLOR = "#fbbf24"       
+    LINE_COLOR = "#ffffff"            
+    GRID_COLOR = "rgba(255, 255, 255, 0.015)" 
     FONT_FAMILY = "sans-serif"
 
 
 class LiveChartApp:
-    """
-    [앱 구동 클래스]
-    내부 기능적 로직은 기존과 100% 동일하며, 오직 렌더링 스타일 속성만 변환되었습니다.
-    """
     def __init__(self, data_dir=r"C:\Users\user\Documents\bitcoin\Data"):
         self.data_dir = data_dir
         self.csv_path = os.path.join(self.data_dir, "Raw.csv")
@@ -29,7 +23,6 @@ class LiveChartApp:
         self.window = None
 
     def _get_html_template(self):
-        """ChartTheme의 금색 디자인 설정을 주입받아 완성된 HTML을 반환합니다."""
         return f"""
         <!DOCTYPE html>
         <html>
@@ -48,13 +41,16 @@ class LiveChartApp:
         <body>
         <div class="widget-container">
             <div class="info-header">
-                <h3 class="chart-title">BTC/USD Pure White & Gold Live Monitor</h3>
-                <div id="livePriceDisplay" class="live-price-text">- USD</div>
+                <h3 class="chart-title">BTC/USD Advanced Trading Widget</h3>
+                <div id="livePriceDisplay" class="live-price-text">Loading...</div>
             </div>
             <div class="canvas-wrapper"><canvas id="liveRenderChart"></canvas></div>
         </div>
         <script>
             const ctx = document.getElementById('liveRenderChart').getContext('2d');
+
+            let lastCloseValue = 0;
+            let currentLivePrice = 0;
 
             const chart = new Chart(ctx, {{
                 type: 'line',
@@ -62,23 +58,29 @@ class LiveChartApp:
                     labels: [],
                     datasets: [
                         {{ 
-                            label: '기준선', 
+                            label: '기준선(CSV)', 
                             data: [], 
                             borderColor: '{ChartTheme.LINE_COLOR}', 
                             borderWidth: 2, 
-                            fill: false,                 // ★ 차트 밑에 차 있는 색상 제거 (투명하게)
+                            fill: false,
                             tension: 0.08, 
-                            pointRadius: 0 
+                            pointRadius: function(context) {{
+                                const count = context.dataset.data.length;
+                                const csvLastIndex = count - 4; // 빈칸 3개를 뺀 실제 마지막 데이터 위치
+                                return context.dataIndex === csvLastIndex ? 5 : 0;
+                            }},
+                            pointBackgroundColor: '{ChartTheme.LINE_COLOR}',
+                            pointBorderColor: '{ChartTheme.LINE_COLOR}'
                         }},
                         {{ 
-                            label: '현재가', 
+                            label: '현재가(라이브)', 
                             data: [], 
                             borderColor: '{ChartTheme.HIGHLIGHT_COLOR}', 
-                            pointRadius: 8,              // 점 크기 확대
-                            pointBackgroundColor: '#ffffff', // 중앙부는 백색으로 빛나게
-                            pointBorderWidth: 4,         // 금빛 테두리 두께 강화
-                            
-                            // ★ 중요: 웅웅거리며 번지는 금빛 네온 효과 연출 (그림자 속성 부여)
+                            pointRadius: function(context) {{
+                                return context.dataIndex === context.dataset.data.length - 1 ? 8 : 0;
+                            }},
+                            pointBackgroundColor: '#ffffff', 
+                            pointBorderWidth: 4,
                             pointShadowColor: '{ChartTheme.HIGHLIGHT_COLOR}',
                             pointShadowBlur: 15,
                             showLine: false 
@@ -88,48 +90,107 @@ class LiveChartApp:
                 options: {{
                     responsive: true, 
                     maintainAspectRatio: false,
-                    animation: {{ duration: 120, easing: 'linear' }},
+                    animation: {{ duration: 100, easing: 'linear' }},
                     scales: {{
                         x: {{ grid: {{ color: '{ChartTheme.GRID_COLOR}' }}, ticks: {{ color: '{ChartTheme.TEXT_COLOR}', maxTicksLimit: 7, font: {{ size: 10 }} }} }},
                         y: {{ grid: {{ color: '{ChartTheme.GRID_COLOR}' }}, ticks: {{ color: '{ChartTheme.TEXT_COLOR}', font: {{ size: 11 }} }} }}
                     }},
                     plugins: {{ legend: {{ display: false }} }}
                 }},
-                // Chart.js에서 점에 그림자 광원 효과(웅웅거리는 느낌)를 주기 위한 커스텀 플러그인 탑재
-                plugins: [{{
-                    id: 'pointShadow',
-                    beforeDraw: (chart) => {{
-                        const ctx = chart.ctx;
-                        ctx.save();
-                        const dataset = chart.data.datasets[1];
-                        if (dataset && dataset.pointShadowBlur) {{
-                            ctx.shadowColor = dataset.pointShadowColor;
-                            ctx.shadowBlur = dataset.pointShadowBlur;
+                plugins: [
+                    {{
+                        id: 'pointShadow',
+                        beforeDraw: (chart) => {{
+                            const ctx = chart.ctx;
+                            ctx.save();
+                            const dataset = chart.data.datasets[1];
+                            if (dataset && dataset.pointShadowBlur) {{
+                                ctx.shadowColor = dataset.pointShadowColor;
+                                ctx.shadowBlur = dataset.pointShadowBlur;
+                            }}
+                        }},
+                        afterDraw: (chart) => {{
+                            chart.ctx.restore();
                         }}
                     }},
-                    afterDraw: (chart) => {{
-                        chart.ctx.restore();
+                    {{
+                        id: 'customTradingLines',
+                        afterDatasetsDraw: (chart) => {{
+                            const ctx = chart.ctx;
+                            const metaCsv = chart.getDatasetMeta(0);
+                            const metaLive = chart.getDatasetMeta(1);
+                            
+                            if (!metaCsv.data.length || !metaLive.data.length) return;
+
+                            const totalPoints = metaCsv.data.length;
+                            const csvLastIdx = totalPoints - 4; 
+                            const liveLastIdx = totalPoints - 1; 
+
+                            const csvLastPoint = metaCsv.data[csvLastIdx];
+                            const liveLastPoint = metaLive.data[liveLastIdx];
+
+                            if (!csvLastPoint || !liveLastPoint) return;
+
+                            ctx.save();
+                            
+                            // [A] 수평 점선 그리기
+                            ctx.beginPath();
+                            ctx.lineWidth = 1.5;
+                            ctx.strokeStyle = '{ChartTheme.HIGHLIGHT_COLOR}aa'; 
+                            ctx.setLineDash([4, 4]); 
+                            
+                            ctx.moveTo(csvLastPoint.x, csvLastPoint.y);
+                            ctx.lineTo(liveLastPoint.x, csvLastPoint.y); 
+                            ctx.stroke();
+
+                            // [B] 수직 실선 그리기
+                            ctx.beginPath();
+                            ctx.lineWidth = 1.5;
+                            ctx.strokeStyle = '{ChartTheme.HIGHLIGHT_COLOR}dd';
+                            ctx.setLineDash([]); // ★ 해결됨: 자바스크립트용 주석(//)으로 변경
+                            
+                            ctx.moveTo(liveLastPoint.x, csvLastPoint.y); 
+                            ctx.lineTo(liveLastPoint.x, liveLastPoint.y); 
+                            ctx.stroke();
+
+                            ctx.restore();
+                        }}
                     }}
-                }}]
+                ]
             }});
 
             window.updateBaseLine = function(labels, values) {{
-                chart.data.labels = labels;
-                chart.data.datasets[0].data = values;
-                if (chart.data.datasets[1].data.length !== labels.length) {{
-                    chart.data.datasets[1].data = new Array(labels.length).fill(null);
+                const newLabels = [...labels];
+                const newValues = [...values];
+
+                if (newValues.length > 0) {{
+                    lastCloseValue = newValues[newValues.length - 1];
                 }}
+
+                for(let i=1; i<=3; i++) {{
+                    newLabels.push("");
+                    newValues.push(null); 
+                }}
+
+                chart.data.labels = newLabels;
+                chart.data.datasets[0].data = newValues;
+
+                chart.data.datasets[1].data = new Array(newLabels.length).fill(null);
                 chart.update('none');
             }};
 
             window.updateLiveTick = function(currentPrice) {{
                 const totalCount = chart.data.datasets[0].data.length;
                 if (totalCount === 0) return;
+
+                currentLivePrice = currentPrice;
                 document.getElementById('livePriceDisplay').innerText = '$' + currentPrice.toLocaleString(undefined, {{minimumFractionDigits: 1}});
+
                 const tickDataArray = new Array(totalCount).fill(null);
                 tickDataArray[totalCount - 1] = currentPrice;
+
                 chart.data.datasets[1].data = tickDataArray;
-                chart.update();
+                chart.update(); 
             }};
         </script>
         </body>
@@ -137,10 +198,8 @@ class LiveChartApp:
         """
 
     def _watch_files_loop(self):
-        """데이터를 파싱하고 전달하는 이 로직 기능은 이전과 완벽히 동일하여 충돌이 일어나지 않습니다."""
         time.sleep(1.5)
         last_csv_size, last_json_size = 0, 0
-        
         while True:
             if not self.window:
                 break
@@ -178,13 +237,12 @@ class LiveChartApp:
                 pass 
             except Exception:
                 pass
-                
             time.sleep(0.5)
 
     def run(self):
         html_content = self._get_html_template()
         self.window = webview.create_window(
-            title='BTC/USD 화이트 골드 모니터 위젯', 
+            title='BTC/USD Advanced Trading Widget', 
             html=html_content, 
             width=900, height=500, resizable=True
         )
