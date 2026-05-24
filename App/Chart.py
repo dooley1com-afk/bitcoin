@@ -1,4 +1,4 @@
-# App/App.py
+# App/Chart.py
 import os
 import json
 import time

@@ -1,6 +1,6 @@
 # main.py
 from Data.Download import Download
-from App.App import LiveChartApp  # 객체화된 클래스를 임포트
+from Window import MainApplication  # 객체화된 클래스를 임포트
 import asyncio
 import threading
 
@@ -26,7 +26,7 @@ def main():
     # 3. [핵심] 차트 앱 객체 생성 및 실행 (메인 스레드에서 구동)
     try:
         print("[시스템] 라이브 차트 뷰어를 시작합니다...")
-        app = LiveChartApp()
+        app = MainApplication()
         app.run()
     except Exception as e:
         print(f"[UI 오류] 뷰어 실행 중 오류 발생: {e}")
